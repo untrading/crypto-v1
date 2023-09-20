@@ -1,0 +1,3 @@
+[submodule "lib/EIP-5173-Divisible"]
+	path = lib/EIP-5173-Divisible
+	url = https://github.com/dRadiant/EIP5173-Divisible-Diamond.git
