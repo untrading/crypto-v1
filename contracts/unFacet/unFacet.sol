@@ -9,7 +9,7 @@ import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Recei
 
 import "@prb/math/contracts/PRBMathUD60x18.sol";
 
-import "lib/EIP-5173-Divisible/contracts/nFR/nFR.sol";
+import "lib/ERC5173-Divisible-Diamond/contracts/nFR/nFR.sol";
 
 // import { CounterStorage } from "../utils/CounterStorage.sol"; //? Do we want to use the nFR CounterStorage or our own? Basically the only difference is storage slot location.
 
