@@ -7,8 +7,6 @@ library UnwrappingStorage {
 
     bytes32 constant EIP712DOMAINTYPE_HASH = keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract,bytes32 salt)");
 
-    bytes32 constant NAME_HASH = keccak256("untrading Crypto Smart Contract"); //? Potentially make this the "name" provided to each unCryptoProxy, just will have to convert string to bytes in order to hash "name".
-
     bytes32 constant VERSION_HASH = keccak256("1");
 
     bytes32 constant TXTYPE_HASH = keccak256("Unwrap(address to,uint256 tokenId)");

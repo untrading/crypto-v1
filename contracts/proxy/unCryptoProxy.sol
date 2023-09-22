@@ -54,7 +54,7 @@ contract unCryptoProxy is Proxy {
 
         // Init EIP-712
         UnwrappingStorage.Layout storage u = UnwrappingStorage.layout();
-        u.DOMAIN_SEPARATOR = keccak256(abi.encode(UnwrappingStorage.EIP712DOMAINTYPE_HASH, UnwrappingStorage.NAME_HASH, UnwrappingStorage.VERSION_HASH, block.chainid, address(this), UnwrappingStorage.SALT));
+        u.DOMAIN_SEPARATOR = keccak256(abi.encode(UnwrappingStorage.EIP712DOMAINTYPE_HASH, keccak256(bytes(name)), UnwrappingStorage.VERSION_HASH, block.chainid, address(this), UnwrappingStorage.SALT));
 
         // Init the manager and managerCut used by oTokens
         ManagementStorage.Layout storage m = ManagementStorage.layout();

@@ -628,7 +628,7 @@ describe("untrading Crypto Contracts", () => {
 	
 				const getSignature = async (signer: SignerWithAddress, to:string, tokenId: number): Promise<Signature> => {
 					const domain = {
-						name: "untrading Crypto Smart Contract",
+						name: "untrading Crypto Wrapping Contract",
 						version: "1",
 						chainId: (await ethers.provider.getNetwork()).chainId,
 						verifyingContract: unProxy.address,
