@@ -18,7 +18,11 @@ const main = async () => {
 
     const unCryptoManager = await ethers.getContractAt("unCryptoManager", (await get('Core')).address, deployer);
 
+    let proxyAddress = await unCryptoManager.callStatic.deployCryptoProxy(underlyingTokenAddress, untradingManager, managerCut, name, symbol, baseURI);
+
     await unCryptoManager.deployCryptoProxy(underlyingTokenAddress, untradingManager, managerCut, name, symbol, baseURI);
+
+    console.log("Proxy deployed at: ", proxyAddress);
 };
 
 main().catch((error) => {
