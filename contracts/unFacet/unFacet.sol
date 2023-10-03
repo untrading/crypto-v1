@@ -28,9 +28,9 @@ contract unFacet is nFR, Management, IunFacet {
     function getORInfo(uint256 tokenId) external view override returns (uint256 ORatio, uint256 rewardRatio, address paymentToken, address[] memory holders) {
         oTokenStorage.Layout storage o = oTokenStorage.layout();
 
-        uint256 oTokenId = o._oTokenId[tokenId];
+        oTokenStorage.oToken storage oToken = o._oTokens[o._oTokenId[tokenId]];
 
-        return (o._oTokens[oTokenId].ORatio, o._oTokens[oTokenId].rewardRatio, o._oTokens[oTokenId].paymentToken, o._oTokens[oTokenId].holders);
+        return (oToken.ORatio, oToken.rewardRatio, oToken.paymentToken, oToken.holders);
     }
 
     function getAllottedOR(address account) external view override returns (uint256) {
@@ -98,7 +98,7 @@ contract unFacet is nFR, Management, IunFacet {
         return tokenId;
     }
 
-    function unwrap(address to, uint256 tokenId, uint8 sigV, bytes32 sigR, bytes32 sigS) external override { // Add an additional param to signature to make it more distinct and unique - we could use ownerAmount from FRInfo, which would guarantee no signature reusability as it is constantly incrementing. Also, need to consider partial unwraps. Partial unwraps should be quite simple, we would just need to do l._tokenAssetInfo[tokenId].amount -= amount; just as we do when having a partial transfer in EIP5173 Divisible, and it shouldn't have any ill-effect. 
+    function unwrap(address to, uint256 tokenId, uint8 sigV, bytes32 sigR, bytes32 sigS) external override { // Add an additional param to signature to make it more distinct and unique - we could use ownerAmount from FRInfo, which would guarantee no signature reusability as it is constantly incrementing. Also, need to consider partial unwraps. Partial unwraps should be quite simple, we would just need to do l._tokenAssetInfo[tokenId].amount -= amount; just as we do when having a partial transfer in EIP5173 Divisible, and it shouldn't have any ill-effect. If allowing partial unwraps, however, would require more complex signature diversity, because let's say a sig is approved for half the token, that sig can be used twice. 
         nFRStorage.Layout storage n = nFRStorage.layout();
         WrappingStorage.Layout storage w = WrappingStorage.layout();
 
@@ -172,28 +172,28 @@ contract unFacet is nFR, Management, IunFacet {
         require(to != _msgSender(), "transfer to self");
         require(amount > 0, "transfer amount is 0");
 
-        uint256 oTokenId = o._oTokenId[tokenId];
+        oTokenStorage.oToken storage oToken = o._oTokens[o._oTokenId[tokenId]];
 
-        uint256 fromBalance = o._oTokens[oTokenId].amount[_msgSender()];
+        uint256 fromBalance = oToken.amount[_msgSender()];
         require(fromBalance >= amount, "transfer amount exceeds balance");
 
         unchecked {
-             o._oTokens[oTokenId].amount[_msgSender()] = fromBalance - amount;
+            oToken.amount[_msgSender()] = fromBalance - amount;
             // Overflow not possible: the sum of all balances is capped by 1e18 (100%), and is preserved by
             // decrementing then incrementing.
-             o._oTokens[oTokenId].amount[to] += amount;
+            oToken.amount[to] += amount;
         }
 
         if (fromBalance - amount == 0) {
-            for (uint256 i = 0; i < o._oTokens[oTokenId].holders.length; i++) {
-                if (o._oTokens[oTokenId].holders[i] == _msgSender()) {
-                    o._oTokens[oTokenId].holders[i] = to;
+            for (uint256 i = 0; i < oToken.holders.length; i++) {
+                if (oToken.holders[i] == _msgSender()) {
+                    oToken.holders[i] = to;
                     return;
                 }
             }
             revert("Not Found");
         } else {
-            o._oTokens[oTokenId].holders.push(to);
+            oToken.holders.push(to);
         }
 
         emit OTokenTransfer(_msgSender(), to, tokenId);
@@ -203,14 +203,16 @@ contract unFacet is nFR, Management, IunFacet {
         oTokenStorage.Layout storage o = oTokenStorage.layout();
         ManagementStorage.Layout storage m = ManagementStorage.layout();
 
-        o._oTokenId[tokenId] = tokenId;
+        oTokenStorage.oToken storage oToken = o._oTokens[tokenId];
+
+        o._oTokenId[tokenId] = tokenId; // Need to set the oTokenId for the token for identification
         
-        o._oTokens[tokenId].ORatio = ORatio;
-        o._oTokens[tokenId].rewardRatio = rewardRatio;
-        o._oTokens[tokenId].paymentToken = paymentToken;
-        o._oTokens[tokenId].holders = [m.untradingManager, to];
-        o._oTokens[tokenId].amount[m.untradingManager] = m.managerCut;
-        o._oTokens[tokenId].amount[to] = (1e18 - m.managerCut);
+        oToken.ORatio = ORatio;
+        oToken.rewardRatio = rewardRatio;
+        oToken.paymentToken = paymentToken;
+        oToken.holders = [m.untradingManager, to];
+        oToken.amount[m.untradingManager] = m.managerCut;
+        oToken.amount[to] = (1e18 - m.managerCut);
 
         emit OTokensDistributed(tokenId);
     }
@@ -218,19 +220,17 @@ contract unFacet is nFR, Management, IunFacet {
     function _distributeOR(uint256 tokenId, uint256 soldPrice, uint256 profit) internal returns(uint256 allocatedOR) {
         oTokenStorage.Layout storage o = oTokenStorage.layout();
 
-        uint256 oTokenId = o._oTokenId[tokenId];
+        oTokenStorage.oToken storage oToken = o._oTokens[o._oTokenId[tokenId]];
 
-        address paymentToken = o._oTokens[oTokenId].paymentToken;
+        uint256 ORAvailable = profit.mul(oToken.ORatio);
 
-        uint256 ORAvailable = profit.mul(o._oTokens[oTokenId].ORatio);
+        for (uint holder = 0; holder < oToken.holders.length; holder++) {
+            address holderAddress = oToken.holders[holder];
 
-        for (uint holder = 0; holder < o._oTokens[oTokenId].holders.length; holder++) {
-            address holderAddress = o._oTokens[oTokenId].holders[holder];
-
-            if (paymentToken == address(0)) {
-                o._allottedOR[holderAddress] += ORAvailable.mul(o._oTokens[oTokenId].amount[holderAddress]);
+            if (oToken.paymentToken == address(0)) {
+                o._allottedOR[holderAddress] += ORAvailable.mul(oToken.amount[holderAddress]);
             } else {
-                o._allottedERC20Tokens[holderAddress][paymentToken] += ORAvailable.mul(o._oTokens[oTokenId].amount[holderAddress]);
+                o._allottedERC20Tokens[holderAddress][oToken.paymentToken] += ORAvailable.mul(oToken.amount[holderAddress]);
             }
         }
 
@@ -249,18 +249,16 @@ contract unFacet is nFR, Management, IunFacet {
     function buy(uint256 tokenId, uint256 amount) public payable virtual override {
         oTokenStorage.Layout storage o = oTokenStorage.layout();
 
-        uint256 oTokenId = o._oTokenId[tokenId];
+        oTokenStorage.oToken storage oToken = o._oTokens[o._oTokenId[tokenId]];
 
-        address paymentToken = o._oTokens[oTokenId].paymentToken;
-
-        if (paymentToken == address(0)) {
+        if (oToken.paymentToken == address(0)) {
             super.buy(tokenId, amount);
         } else {
             nFRStorage.Layout storage l = nFRStorage.layout();
 
             uint256 salePrice = ((amount).div(l._tokenListInfo[tokenId].saleAmount)).mul(l._tokenListInfo[tokenId].salePrice); // Sale price should be determined based on the amount supplied into the buy function, (buyAmount/saleAmount) * salePrice
 
-            IERC20(paymentToken).transferFrom(_msgSender(), address(this), salePrice); //* Need to assess if calling transferFrom here is the best approach, versus a more complete refactor for safety reasons. We could convert _payLister to pull payment in both nFR and here, and then we would be able to call IERC20.transferFrom at the end of this buy override.
+            IERC20(oToken.paymentToken).transferFrom(_msgSender(), address(this), salePrice); //* Need to assess if calling transferFrom here is the best approach, versus a more complete refactor for safety reasons. We could convert _payLister to pull payment in both nFR and here, and then we would be able to call IERC20.transferFrom at the end of this buy override.
 
             _buy(tokenId, amount, true);
         }
@@ -269,28 +267,24 @@ contract unFacet is nFR, Management, IunFacet {
     function _payLister(uint256 tokenId, address lister, uint256 paymentAmount) internal virtual override {
         oTokenStorage.Layout storage o = oTokenStorage.layout();
 
-        uint256 oTokenId = o._oTokenId[tokenId];
+        oTokenStorage.oToken storage oToken = o._oTokens[o._oTokenId[tokenId]];
 
-        address paymentToken = o._oTokens[oTokenId].paymentToken;
-
-        if (paymentToken == address(0)) {
+        if (oToken.paymentToken == address(0)) {
             super._payLister(tokenId, lister, paymentAmount);
         } else {
-            IERC20(paymentToken).transfer(lister, paymentAmount); // Since _payLister is only called when soldPrice > 0, you will never be transferring 0. 
+            IERC20(oToken.paymentToken).transfer(lister, paymentAmount); // Since _payLister is only called when soldPrice > 0, you will never be transferring 0. 
         }
     }
 
     function _allocateFR(uint256 tokenId, address owner, uint256 FR) internal virtual override {
         oTokenStorage.Layout storage o = oTokenStorage.layout();
 
-        uint256 oTokenId = o._oTokenId[tokenId];
+        oTokenStorage.oToken storage oToken = o._oTokens[o._oTokenId[tokenId]];
 
-        address paymentToken = o._oTokens[oTokenId].paymentToken;
-
-        if (paymentToken == address(0)) {
+        if (oToken.paymentToken == address(0)) {
             super._allocateFR(tokenId, owner, FR);
         } else {
-            oTokenStorage.layout()._allottedERC20Tokens[owner][paymentToken] += FR; 
+            oTokenStorage.layout()._allottedERC20Tokens[owner][oToken.paymentToken] += FR;
         }
     }
 
