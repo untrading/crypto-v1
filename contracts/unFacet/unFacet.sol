@@ -95,10 +95,12 @@ contract unFacet is nFR, Management, IunFacet {
 
         IERC20(w.underlyingTokenAddress).transferFrom(_msgSender(), address(this), tokenAmount);
 
+        emit Wrapped(to, tokenAmount, paymentToken);
+
         return tokenId;
     }
 
-    function unwrap(address to, uint256 tokenId, uint8 sigV, bytes32 sigR, bytes32 sigS) external override { // Add an additional param to signature to make it more distinct and unique - we could use ownerAmount from FRInfo, which would guarantee no signature reusability as it is constantly incrementing. Also, need to consider partial unwraps. Partial unwraps should be quite simple, we would just need to do l._tokenAssetInfo[tokenId].amount -= amount; just as we do when having a partial transfer in EIP5173 Divisible, and it shouldn't have any ill-effect. If allowing partial unwraps, however, would require more complex signature diversity, because let's say a sig is approved for half the token, that sig can be used twice. 
+    function unwrap(address to, uint256 tokenId, uint8 sigV, bytes32 sigR, bytes32 sigS) external override { // We could use the current token amount as the another param. Partial unwraps should be quite simple, we would just need to do l._tokenAssetInfo[tokenId].amount -= amount; just as we do when having a partial transfer in EIP5173 Divisible, and it shouldn't have any ill-effect. If allowing partial unwraps, however, would require more complex signature diversity, because let's say a sig is approved for half the token, that sig can be used twice. 
         nFRStorage.Layout storage n = nFRStorage.layout();
         WrappingStorage.Layout storage w = WrappingStorage.layout();
 
@@ -136,6 +138,8 @@ contract unFacet is nFR, Management, IunFacet {
         _burn(tokenId);
 
         IERC20(underlyingTokenAddress).transfer(to, amount);
+
+        emit Unwrapped(tokenId, amount);
     }
 
     function releaseOR(address payable account) external override {

@@ -21,6 +21,10 @@ interface IunFacet is IERC165 {
 
     event OTokensDistributed(uint256 indexed tokenId);
 
+    event Wrapped(address indexed account, uint256 indexed tokenAmount, address paymentToken);
+
+    event Unwrapped(uint256 indexed tokenId, uint256 indexed amount);
+
     function wrap(address to, uint256 tokenAmount, address paymentToken, uint8 numGenerations, uint256 rewardRatio, uint256 ORatio) external returns (uint256);
 
     function unwrap(address to, uint256 tokenId, uint8 sigV, bytes32 sigR, bytes32 sigS) external;
