@@ -292,8 +292,7 @@ describe("untrading Crypto Contracts", () => {
 			});
 	
 			it("Should set and get the correct Asset info", async function() {
-				let expectedArray = [tokenAmount, tokenAmount];
-				expect(await unProxy.getAssetInfo(tokenId)).to.deep.equal(expectedArray);
+				expect(await unProxy.getAssetInfo(tokenId)).to.equal(tokenAmount);
 			});
 	
 			it("Should return the proper allotted FR", async function() {
@@ -469,13 +468,13 @@ describe("untrading Crypto Contracts", () => {
 		
 							let s = unProxy.connect(addrs[0]);
 		
-							await s.buy(currentTokenId, buyAmount, { value: baseSale });
+							await s.buy(currentTokenId, buyAmount, { value: mul(baseSale, buyAmount) });
 
 							currentTokenId++;
 
 							let expectedContractBalance = ethers.utils.parseUnits("0");
 
-							let firstORPayment = expectedContractBalance.add(mul(baseSale, mul(rewardRatio, ORatio))); // Only OR was paid
+							let firstORPayment = expectedContractBalance.add(mul(mul(baseSale, buyAmount), mul(rewardRatio, ORatio))); // Only OR was paid
 		
 							for (let transfers = 0; transfers < 9; transfers++) { // This results in 11 total owners, minter, transfer, 9 more transfers.
 								let signer = unProxy.connect(addrs[transfers]);
@@ -483,16 +482,14 @@ describe("untrading Crypto Contracts", () => {
 								buyAmount = buyAmount.div(2);
 		
 								let salePrice: BigNumber = (await unProxy.getFRInfo(currentTokenId))[3].add(ethers.utils.parseUnits(saleIncrementor)); // Get lastSoldPrice and add incrementor
-								
-								let profit = mul(buyAmount, (div(salePrice, buyAmount).sub((div((await unProxy.getFRInfo(currentTokenId))[3], (await unProxy.getAssetInfo(currentTokenId))[1]))))); // Increases by 0.25 each iter, because you are halving the amount you are buying while adding 0.5 -> 0.5/2
 		
 								await signer.list(currentTokenId, buyAmount, salePrice);
 		
-								await secondSigner.buy(currentTokenId, buyAmount, { value: salePrice });
+								await secondSigner.buy(currentTokenId, buyAmount, { value: mul(buyAmount, salePrice) });
 
 								currentTokenId++;
 
-								expectedContractBalance = expectedContractBalance.add(mul(rewardRatio, profit));
+								expectedContractBalance = expectedContractBalance.add(mul(rewardRatio, mul(ethers.utils.parseUnits(saleIncrementor), buyAmount)));
 							}
 	
 							// FR Validation
@@ -505,11 +502,9 @@ describe("untrading Crypto Contracts", () => {
 		
 							expect(await unProxy.getFRInfo(currentTokenId)).to.deep.equal(expectedArray);
 
-							let expectedAssetInfo = [ethers.utils.parseUnits("0.0009765625"), ethers.utils.parseUnits("0.0009765625")]; // 1 * (1/2**10)
+							expect(await unProxy.getAssetInfo(currentTokenId)).to.equal(ethers.utils.parseUnits("0.0009765625")); // 1 * (1/2**10)
 
-							expect(await unProxy.getAssetInfo(currentTokenId)).to.deep.equal(expectedAssetInfo);
-
-							expect(await unProxy.getAssetInfo(tokenId)).to.deep.equal([ ethers.utils.parseUnits("0.5"), ethers.utils.parseUnits("1") ]);
+							expect(await unProxy.getAssetInfo(tokenId)).to.equal(ethers.utils.parseUnits("0.5"));
 		
 							let totalOwners = [owner.address, ...expectedArray[5]];
 		
@@ -619,7 +614,7 @@ describe("untrading Crypto Contracts", () => {
 					await unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, numGenerations, rewardRatio, ORatio);
 	
 					expect(await unProxy.ownerOf(2)).to.equal(owner.address);
-					expect(await unProxy.getAssetInfo(2)).to.deep.equal([ tokenAmount, tokenAmount ]);
+					expect(await unProxy.getAssetInfo(2)).to.equal(tokenAmount);
 				});
 			});
 	
@@ -699,7 +694,7 @@ describe("untrading Crypto Contracts", () => {
 		
 						expect(await unProxy.getFRInfo(tokenId + 1)).to.deep.equal([ 0, 0, 0, 0, 0, []]);
 						expect(await unProxy.getListInfo(tokenId + 1)).to.deep.equal([ 0, 0, ethers.constants.AddressZero, false ]);
-						expect(await unProxy.getAssetInfo(tokenId + 1)).to.deep.equal([ 0, 0 ]);
+						expect(await unProxy.getAssetInfo(tokenId + 1)).to.equal(0);
 						expect(await unProxy.getORInfo(tokenId + 1)).to.deep.equal([ 0, 0, ethers.constants.AddressZero, [] ]);
 					});
 				});
@@ -937,20 +932,20 @@ describe("untrading Crypto Contracts", () => {
 
 						/* 2nd Purchase so FR can be paid */
 
-						await unProxySigner.list(tokenId + 1, tokenAmount.div(2), ethers.utils.parseUnits("1")); // Profit 0.5
+						await unProxySigner.list(tokenId + 1, tokenAmount.div(2), ethers.utils.parseUnits("1.5")); // Profit 0.25
 
 						await ERC20PaymentToken.mint(addrs[1].address, mintAmount);
 
 						let ERC20Signer2 = ERC20PaymentToken.connect(addrs[1]);
 
-						await ERC20Signer2.approve(unProxy.address, ethers.utils.parseUnits("1"));
+						await ERC20Signer2.approve(unProxy.address, ethers.utils.parseUnits("0.75"));
 
 						let unProxySigner2 = unProxy.connect(addrs[1]);
 
 						await unProxySigner2.buy(tokenId + 1, tokenAmount.div(2));
 
-						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.14").add(ethers.utils.parseUnits("0.175")));
-						expect(await unProxy.getAllottedTokens(owner.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.252")); // 0.098 (0.35 * 0.4 * 0.7) + 0.105 (Full FR) + 0.049 (OR - Manager Cut)
+						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.14").add(ethers.utils.parseUnits("0.0875")));
+						expect(await unProxy.getAllottedTokens(owner.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.175")); // 0.098 (0.35 * 0.4 * 0.7) + 0.0525 (Full FR) + 0.0245 (OR - Manager Cut)
 					});
 
 					it("Any descendant tokens should have the same payment token", async () => {
