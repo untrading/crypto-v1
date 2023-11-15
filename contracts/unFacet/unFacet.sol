@@ -100,7 +100,7 @@ contract unFacet is nFR, Management, IunFacet {
         return tokenId;
     }
 
-    function unwrap(address to, uint256 tokenId, uint8 sigV, bytes32 sigR, bytes32 sigS) external override { // We could use the current token amount as the another param. Partial unwraps should be quite simple, we would just need to do l._tokenAssetInfo[tokenId].amount -= amount; just as we do when having a partial transfer in EIP5173 Divisible, and it shouldn't have any ill-effect. If allowing partial unwraps, however, would require more complex signature diversity, because let's say a sig is approved for half the token, that sig can be used twice. 
+    function unwrap(address to, uint256 tokenId, uint8 sigV, bytes32 sigR, bytes32 sigS) external override {
         nFRStorage.Layout storage n = nFRStorage.layout();
         WrappingStorage.Layout storage w = WrappingStorage.layout();
 
@@ -209,7 +209,7 @@ contract unFacet is nFR, Management, IunFacet {
 
         oTokenStorage.oToken storage oToken = o._oTokens[tokenId];
 
-        o._oTokenId[tokenId] = tokenId; // Need to set the oTokenId for the token for identification
+        o._oTokenId[tokenId] = tokenId; // Set the oTokenId for the token for identification
         
         oToken.ORatio = ORatio;
         oToken.rewardRatio = rewardRatio;
@@ -221,7 +221,7 @@ contract unFacet is nFR, Management, IunFacet {
         emit OTokensDistributed(tokenId);
     }
 
-    function _distributeOR(uint256 tokenId, uint256 soldPrice, uint256 profit) internal returns(uint256 allocatedOR) {
+    function _distributeOR(uint256 tokenId, uint256 profit) internal returns(uint256 allocatedOR) {
         oTokenStorage.Layout storage o = oTokenStorage.layout();
 
         oTokenStorage.oToken storage oToken = o._oTokens[o._oTokenId[tokenId]];
@@ -240,12 +240,12 @@ contract unFacet is nFR, Management, IunFacet {
 
         allocatedOR = ORAvailable;
 
-        emit ORDistributed(tokenId, soldPrice, ORAvailable);
+        emit ORDistributed(tokenId, ORAvailable);
     }
 
-    function _distributeFR(uint256 tokenId, uint256 soldPrice, uint256 profit) internal override returns(uint256 allocatedFR) {
-        uint256 allocatedOR = _distributeOR(tokenId, soldPrice, profit);
-        uint256 allocated = super._distributeFR(tokenId, soldPrice, profit);
+    function _distributeFR(uint256 tokenId, uint256 profit) internal override returns(uint256 allocatedFR) {
+        uint256 allocatedOR = _distributeOR(tokenId, profit);
+        uint256 allocated = super._distributeFR(tokenId, profit);
 
         allocatedFR = (allocated + allocatedOR);
     }
@@ -260,9 +260,9 @@ contract unFacet is nFR, Management, IunFacet {
         } else {
             nFRStorage.Layout storage l = nFRStorage.layout();
 
-            uint256 salePrice = ((amount).div(l._tokenListInfo[tokenId].saleAmount)).mul(l._tokenListInfo[tokenId].salePrice); // Sale price should be determined based on the amount supplied into the buy function, (buyAmount/saleAmount) * salePrice
+            uint256 transactionValue = (amount).mul(l._tokenListInfo[tokenId].salePrice); // Sale price should be determined based on the amount supplied into the buy function, (buyAmount) * salePrice
 
-            IERC20(oToken.paymentToken).transferFrom(_msgSender(), address(this), salePrice); //* Need to assess if calling transferFrom here is the best approach, versus a more complete refactor for safety reasons. We could convert _payLister to pull payment in both nFR and here, and then we would be able to call IERC20.transferFrom at the end of this buy override.
+            IERC20(oToken.paymentToken).transferFrom(_msgSender(), address(this), transactionValue); //* Need to assess if calling transferFrom here is the best approach, versus a more complete refactor for safety reasons. We could convert _payLister to pull payment in both nFR and here, and then we would be able to call IERC20.transferFrom at the end of this buy override.
 
             _buy(tokenId, amount, true);
         }

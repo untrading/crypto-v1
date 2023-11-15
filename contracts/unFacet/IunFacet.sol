@@ -15,7 +15,7 @@ interface IunFacet is IERC165 {
 
     event ERC20RewardsClaimed(address indexed account, address indexed token, uint256 indexed amount);
 
-    event ORDistributed(uint256 indexed tokenId, uint256 indexed soldPrice, uint256 indexed allocatedFR);
+    event ORDistributed(uint256 indexed tokenId, uint256 indexed allocatedOR);
 
     event OTokenTransfer(address indexed from, address indexed to, uint256 indexed tokenId);
 
