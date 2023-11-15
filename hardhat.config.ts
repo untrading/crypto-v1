@@ -48,6 +48,12 @@ const config: HardhatUserConfig = {
       apiKey: process.env.ETHERSCAN_API_KEY
     }
   },
+
+  etherscan: {
+    apiKey: {
+      goerli: process.env.ETHERSCAN_API_KEY
+    }
+  }
 };
 
 export default config;
