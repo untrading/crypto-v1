@@ -18,7 +18,7 @@ library oTokenStorage {
 
         mapping(uint256 => oToken) _oTokens; // Mapping that represents the oToken information for a given oTokenId
 
-        mapping(uint256 => uint256) _oTokenId; // Mapping that represents the tokenId => oTokenId // TODO: Ensure the pretty large refactor we just did doesn't have negative implications or didn't mess up anything.
+        mapping(uint256 => uint256) _oTokenId; // Mapping that represents the tokenId => oTokenId
 
         mapping(address => uint256) _allottedOR; // Mapping that represents the OR (in Ether) allotted for a given address
 
