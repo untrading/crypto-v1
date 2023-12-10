@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.8;
 
-import {SolidStateERC721} from "@solidstate/contracts/token/ERC721/SolidStateERC721.sol";
-import {ERC721MetadataStorage} from "@solidstate/contracts/token/ERC721/metadata/ERC721MetadataStorage.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC721Receiver} from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
+import { SolidStateERC721 } from "@solidstate/contracts/token/ERC721/SolidStateERC721.sol";
+import { ERC721MetadataStorage } from "@solidstate/contracts/token/ERC721/metadata/ERC721MetadataStorage.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 import "@prb/math/contracts/PRBMathUD60x18.sol";
 
@@ -55,7 +55,7 @@ contract unFacet is nFR, Management, IunFacet {
         return (w.underlyingTokenAddress);
     }
 
-    function mint(
+    function _mint(
         address to,
         uint256 amount,
         address paymentToken,
@@ -89,9 +89,11 @@ contract unFacet is nFR, Management, IunFacet {
         uint256 rewardRatio,
         uint256 ORatio
     ) external override returns(uint256) {
-        uint256 tokenId = mint(to, tokenAmount, paymentToken, numGenerations, rewardRatio, ORatio);
-
         WrappingStorage.Layout storage w = WrappingStorage.layout();
+
+        uint256 adjustedTokenAmount = tokenAmount * (10 ** (18 - w.underlyingTokenDecimals)); // Adjust the decimals of the token to ensure that the token amounts are always in 18 decimals.
+
+        uint256 tokenId = _mint(to, adjustedTokenAmount, paymentToken, numGenerations, rewardRatio, ORatio);
 
         IERC20(w.underlyingTokenAddress).transferFrom(_msgSender(), address(this), tokenAmount);
 
@@ -133,7 +135,7 @@ contract unFacet is nFR, Management, IunFacet {
         }
 
         address underlyingTokenAddress = w.underlyingTokenAddress;
-        uint256 amount = n._tokenAssetInfo[tokenId].amount;
+        uint256 amount = n._tokenAssetInfo[tokenId].amount / (10 ** (18 - w.underlyingTokenDecimals)); // Remove any additional decimals the contract might have added
 
         _burn(tokenId);
 

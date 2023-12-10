@@ -8,6 +8,7 @@ library WrappingStorage {
     struct Layout {
         // Every token in this contract is assumed to be wrapped, so there is no need for another underlyingAmount variable or an isWrapped bool.
         address underlyingTokenAddress;
+        uint8 underlyingTokenDecimals;
     }
 
     function layout() internal pure returns (Layout storage l) {

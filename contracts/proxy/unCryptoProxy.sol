@@ -2,9 +2,10 @@
 pragma solidity ^0.8.8;
 
 import { ERC721MetadataStorage } from '@solidstate/contracts/token/ERC721/metadata/ERC721MetadataStorage.sol';
-import {IERC165} from "@solidstate/contracts/interfaces/IERC165.sol";
-import {ERC165BaseStorage} from "@solidstate/contracts/introspection/ERC165/base/ERC165BaseStorage.sol";
-import {IERC721} from "@solidstate/contracts/interfaces/IERC721.sol";
+import { IERC165 } from "@solidstate/contracts/interfaces/IERC165.sol";
+import { ERC165BaseStorage } from "@solidstate/contracts/introspection/ERC165/base/ERC165BaseStorage.sol";
+import { IERC721 } from "@solidstate/contracts/interfaces/IERC721.sol";
+import { IERC20Metadata } from "@solidstate/contracts/token/ERC20/metadata/IERC20Metadata.sol";
 import "@drad/eip-5173-diamond/contracts/nFR/InFR.sol";
 
 import { IDiamondReadable } from '@solidstate/contracts/proxy/diamond/readable/IDiamondReadable.sol';
@@ -51,6 +52,9 @@ contract unCryptoProxy is Proxy {
         // Init the WrappingStorage and set underlying token
         WrappingStorage.Layout storage w = WrappingStorage.layout();
         w.underlyingTokenAddress = underlyingToken;
+        w.underlyingTokenDecimals = IERC20Metadata(underlyingToken).decimals();
+
+        assert(w.underlyingTokenDecimals > 0 && w.underlyingTokenDecimals <= 18);
 
         // Init EIP-712
         UnwrappingStorage.Layout storage u = UnwrappingStorage.layout();
