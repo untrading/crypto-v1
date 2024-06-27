@@ -5,6 +5,7 @@ pragma solidity ^0.8.8;
 import { SolidStateERC721 } from "@solidstate/contracts/token/ERC721/SolidStateERC721.sol";
 import { ERC721MetadataStorage } from "@solidstate/contracts/token/ERC721/metadata/ERC721MetadataStorage.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 
 import "@prb/math/contracts/PRBMathUD60x18.sol";
@@ -23,6 +24,7 @@ import "./IunFacet.sol";
 contract unFacet is nFR, Management, IunFacet {
     using CounterStorage for CounterStorage.Layout;
 
+    using SafeERC20 for IERC20;
     using PRBMathUD60x18 for uint256;
 
     function getORInfo(uint256 tokenId) external view override returns (uint256 ORatio, uint256 rewardRatio, address paymentToken, address[] memory holders) {
@@ -95,7 +97,7 @@ contract unFacet is nFR, Management, IunFacet {
 
         uint256 tokenId = _mint(to, adjustedTokenAmount, paymentToken, numGenerations, rewardRatio, ORatio);
 
-        IERC20(w.underlyingTokenAddress).transferFrom(_msgSender(), address(this), tokenAmount);
+        IERC20(w.underlyingTokenAddress).safeTransferFrom(_msgSender(), address(this), tokenAmount);
 
         emit Wrapped(to, tokenAmount, paymentToken);
 
@@ -139,7 +141,7 @@ contract unFacet is nFR, Management, IunFacet {
 
         _burn(tokenId);
 
-        IERC20(underlyingTokenAddress).transfer(to, amount);
+        IERC20(underlyingTokenAddress).safeTransfer(to, amount);
 
         emit Unwrapped(tokenId, amount);
     }
@@ -166,7 +168,7 @@ contract unFacet is nFR, Management, IunFacet {
 
         o._allottedERC20Tokens[account][token] = 0;
 
-        IERC20(token).transfer(account, paymentAmount);
+        IERC20(token).safeTransfer(account, paymentAmount);
 
         emit ERC20RewardsClaimed(account, token, paymentAmount);
     }
@@ -264,7 +266,7 @@ contract unFacet is nFR, Management, IunFacet {
 
             uint256 transactionValue = (amount).mul(l._tokenListInfo[tokenId].salePrice); // Sale price should be determined based on the amount supplied into the buy function, (buyAmount) * salePrice
 
-            IERC20(oToken.paymentToken).transferFrom(_msgSender(), address(this), transactionValue); //* Need to assess if calling transferFrom here is the best approach, versus a more complete refactor for safety reasons. We could convert _payLister to pull payment in both nFR and here, and then we would be able to call IERC20.transferFrom at the end of this buy override.
+            IERC20(oToken.paymentToken).safeTransferFrom(_msgSender(), address(this), transactionValue); //* Need to assess if calling transferFrom here is the best approach, versus a more complete refactor for safety reasons. We could convert _payLister to a pull-payment system in both nFR for ETH and here for ERC20, and then we would be able to call IERC20.transferFrom at the end of this buy override.
 
             _buy(tokenId, amount, true);
         }
@@ -278,7 +280,7 @@ contract unFacet is nFR, Management, IunFacet {
         if (oToken.paymentToken == address(0)) {
             super._payLister(tokenId, lister, paymentAmount);
         } else {
-            IERC20(oToken.paymentToken).transfer(lister, paymentAmount); // Since _payLister is only called when soldPrice > 0, you will never be transferring 0. 
+            IERC20(oToken.paymentToken).safeTransfer(lister, paymentAmount); // Since _payLister is only called when soldPrice > 0, you will never be transferring 0. 
         }
     }
 
