@@ -46,6 +46,11 @@ const config: HardhatUserConfig = {
       accounts: process.env.DEPLOYER_PRIVATE_KEY == undefined ? [] : [`0x${process.env.DEPLOYER_PRIVATE_KEY}`],
       saveDeployments: true,
     },
+    arbitrum: {
+      url: `https://arbitrum-mainnet.infura.io/v3/${process.env.INFURA_TOKEN}`, // RPC URL
+      accounts: process.env.DEPLOYER_PRIVATE_KEY == undefined ? [] : [`0x${process.env.DEPLOYER_PRIVATE_KEY}`],
+      saveDeployments: true,
+    },
   },
   
   verify: {
