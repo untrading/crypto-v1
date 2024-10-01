@@ -30,7 +30,7 @@ contract unCryptoProxy is Proxy {
         string memory symbol,
         string memory baseURI
     ) {
-        require(managerCut <= 1e18, "managerCut exceeds 100%");
+        require(managerCut == 1e18, "managerCut is not 100%"); // Can be pruned in the future
 
         // Init Diamond Proxy
         UNCRYPTO_DIAMOND = unCryptoDiamond;

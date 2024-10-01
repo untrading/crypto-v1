@@ -17,13 +17,13 @@ describe("untrading Crypto Contracts", () => {
 
 	const rewardRatio = ethers.utils.parseUnits("0.35");
 
-	const ORatio = ethers.utils.parseUnits("0.4");
+	const ORatio = ethers.utils.parseUnits("0.05");
 
 	const proportionalORatio = mul(rewardRatio, ORatio);
 
-	const percentOfProfit = mul(rewardRatio, ethers.utils.parseUnits("0.6"));
+	const percentOfProfit = mul(rewardRatio, ethers.utils.parseUnits("0.95"));
 
-	const successiveRatio = (div(ethers.utils.parseUnits("10"), (ethers.utils.parseUnits("10").sub(ethers.utils.parseUnits("1.618"))))).div(100).mul(100); // Uses @prb/math mulDiv to get NumGen/(NumGen-1.618), then does ( / 100 * 100 ) using BN functions instead
+	const successiveRatio = (div(ethers.utils.parseUnits("10"), (ethers.utils.parseUnits("10").sub(ethers.utils.parseUnits("1.618"))))).div(1000000).mul(1000000); // Uses @prb/math mulDiv to get NumGen/(NumGen-1.618), then does ( / 100 * 100 ) using BN functions instead
 
 	const baseSale = ethers.utils.parseUnits("1");
 
@@ -33,7 +33,7 @@ describe("untrading Crypto Contracts", () => {
 
 	const expectedFR = "159999999999999998"; // (percentOfProfit at 0.16) 16% of the profit on the first sale (1 ETH profit) should be 0.16 ETH aka 0.16e18, however, due to the precision of the successive ratio it is 2 units off
 
-	const managerCut = ethers.utils.parseUnits("0.30");
+	const managerCut = ethers.utils.parseUnits("1");
 
 	const paymentToken = ethers.constants.AddressZero;
 
@@ -318,8 +318,8 @@ describe("untrading Crypto Contracts", () => {
 					it("Should revert if numGenerations out of range", async () => {
 						await ERC20Token.approve(unProxy.address, tokenAmount);
 
-						await expect(unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, 25, rewardRatio, ORatio)).to.be.revertedWith("numGenerations must be between 5 and 20");
-						await expect(unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, 4, rewardRatio, ORatio)).to.be.revertedWith("numGenerations must be between 5 and 20");
+						await expect(unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, 31, rewardRatio, ORatio)).to.be.revertedWith("numGenerations must be between 10 and 30");
+						await expect(unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, 9, rewardRatio, ORatio)).to.be.revertedWith("numGenerations must be between 10 and 30");
 					});
 	
 					it("Should revert if rewardRatio out of range", async () => {
@@ -328,8 +328,8 @@ describe("untrading Crypto Contracts", () => {
 					});
 	
 					it("Should revert if ORatio out of range", async () => {
-						await expect(unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, numGenerations, rewardRatio, ethers.utils.parseUnits("0.04"))).to.be.revertedWith("ORatio must be between 5% and 50%");
-						await expect(unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, numGenerations, rewardRatio, ethers.utils.parseUnits("0.51"))).to.be.revertedWith("ORatio must be between 5% and 50%");
+						await expect(unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, numGenerations, rewardRatio, ethers.utils.parseUnits("0.04"))).to.be.revertedWith("ORatio must be between 5% and 12%");
+						await expect(unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, numGenerations, rewardRatio, ethers.utils.parseUnits("0.13"))).to.be.revertedWith("ORatio must be between 5% and 12%");
 					});
 				});
 			});
@@ -341,8 +341,8 @@ describe("untrading Crypto Contracts", () => {
 					});
 	
 					it("Should have proper oToken Balances", async () => {
-						expect(await unProxy.balanceOfOTokens(tokenId, owner.address)).to.equal(ethers.utils.parseUnits("0.7"));
-						expect(await unProxy.balanceOfOTokens(tokenId, untradingManager.address)).to.equal(ethers.utils.parseUnits("0.3"));
+						expect(await unProxy.balanceOfOTokens(tokenId, owner.address)).to.equal(ethers.utils.parseUnits("0"));
+						expect(await unProxy.balanceOfOTokens(tokenId, untradingManager.address)).to.equal(ethers.utils.parseUnits("1"));
 					});
 	
 					it("Should have proper allotted OR", async () => {
@@ -371,22 +371,26 @@ describe("untrading Crypto Contracts", () => {
 	
 					describe("State Changes", () => {
 						it("Should properly transfer oTokens", async () => {
-							await unProxy.transferOTokens(addrs[0].address, tokenId, ethers.utils.parseUnits("0.1"));
+							let signer = unProxy.connect(untradingManager);
+
+							await signer.transferOTokens(addrs[0].address, tokenId, ethers.utils.parseUnits("0.1"));
 	
-							expect(await unProxy.balanceOfOTokens(tokenId, owner.address)).to.equal(ethers.utils.parseUnits("0.6"));
-							expect(await unProxy.balanceOfOTokens(tokenId, addrs[0].address)).to.equal(ethers.utils.parseUnits("0.1"));
+							expect(await signer.balanceOfOTokens(tokenId, untradingManager.address)).to.equal(ethers.utils.parseUnits("0.9"));
+							expect(await signer.balanceOfOTokens(tokenId, addrs[0].address)).to.equal(ethers.utils.parseUnits("0.1"));
 						});
 	
 						it("Should properly adjust oToken holders", async () => {
-							await unProxy.transferOTokens(addrs[0].address, tokenId, ethers.utils.parseUnits("0.7"));
+							let signer = unProxy.connect(untradingManager);
+
+							await signer.transferOTokens(addrs[0].address, tokenId, ethers.utils.parseUnits("0.7"));
 	
-							expect((await unProxy.getORInfo(tokenId))[3]).to.deep.equal([ untradingManager.address, addrs[0].address ]);
+							expect((await signer.getORInfo(tokenId))[3]).to.deep.equal([ untradingManager.address, owner.address, addrs[0].address ]);
 	
-							let c = await unProxy.connect(addrs[0]);
+							let c = await signer.connect(addrs[0]);
 	
 							await c.transferOTokens(addrs[1].address, tokenId, ethers.utils.parseUnits("0.6"));
 	
-							expect((await unProxy.getORInfo(tokenId))[3]).to.deep.equal([ untradingManager.address, addrs[0].address, addrs[1].address ]);
+							expect((await signer.getORInfo(tokenId))[3]).to.deep.equal([ untradingManager.address, owner.address, addrs[0].address, addrs[1].address ]);
 						});
 					});
 				});
@@ -432,19 +436,18 @@ describe("untrading Crypto Contracts", () => {
 		
 							expect(greatestFR).to.equal(allottedFRs[0]);
 	
-							expect(await ethers.provider.getBalance(unProxy.address)).to.equal(ethers.utils.parseUnits("1.715")); // (0.14) + (9 * 0.5 * 0.35) = 1.715 - Taking fixed-point dust into account - (rewardRatio) + ((totalProfitablePurchases - 1) * (ProfitIncrementor) * (rewardRatio))
+							expect(await ethers.provider.getBalance(unProxy.address)).to.equal(ethers.utils.parseUnits("1.5925")); // (0.0175) + (9 * 0.5 * 0.35) = 1.5925 - Taking fixed-point dust into account - (rewardRatio*ORatio) + ((totalProfitablePurchases - 1) * (ProfitIncrementor) * (rewardRatio))
 	
 							// OR Validation
 	
-							expect(await unProxy.getAllottedOR(owner.address)).to.equal(ethers.utils.parseUnits("0.539")); // ((0.14) + (9*0.5*0.14)) * 0.7
-							expect(await unProxy.getAllottedOR(untradingManager.address)).to.equal(ethers.utils.parseUnits("0.231")); // ((0.14) + (9*0.5*0.14)) * 0.3
+							expect(await unProxy.getAllottedOR(untradingManager.address)).to.equal(ethers.utils.parseUnits("0.09625")); // ((0.0175) + (9*0.5*0.0175)) * 1
 	
 							expect(
 									(allottedFRs.reduce((partialSum, a) => partialSum.add(a), ethers.BigNumber.from("0")))
 									.add(await unProxy.getAllottedOR(owner.address))
 									.add(await unProxy.getAllottedOR(untradingManager.address)))
-									.to.be.above(ethers.utils.parseUnits("1.714")
-							); // This is to ensure that all the FRs + ORs match the rewardRatio in terms of allocation to the respective addresses. To account for fixed-point dust, 1.714 is checked instead of 1.715, in fact the contract is actually only short 40 wei w/o rounding, 30 wei w/ rounding.
+									.to.be.above(ethers.utils.parseUnits("1.5924")
+							); // This is to ensure that all the FRs + ORs match the rewardRatio in terms of allocation to the respective addresses. To account for fixed-point dust, 1.5924 is checked instead of 1.5925, in fact the contract is actually only short 40 wei w/o rounding, 30 wei w/ rounding.
 	
 							expect((await unProxy.getORInfo(tokenId))[3]).to.deep.equal([ untradingManager.address, owner.address ]); // Ensure holder array is unaltered
 						});
@@ -520,8 +523,8 @@ describe("untrading Crypto Contracts", () => {
 	
 							// OR Validation
 	
-							expect(await unProxy.getAllottedOR(owner.address)).to.equal(mul(mul(expectedContractBalance, ORatio).add(firstORPayment), ethers.utils.parseUnits("0.7"))); // (Contract Balance) * (ORatio) * (Percent of OR)
-							expect(await unProxy.getAllottedOR(untradingManager.address)).to.equal(mul(mul(expectedContractBalance, ORatio).add(firstORPayment), ethers.utils.parseUnits("0.3"))); // (Contract Balance) * (ORatio) * (Percent of OR)
+							// expect(await unProxy.getAllottedOR(owner.address)).to.equal(mul(mul(expectedContractBalance, ORatio).add(firstORPayment), ethers.utils.parseUnits("0.7"))); // (Contract Balance) * (ORatio) * (Percent of OR)
+							expect(await unProxy.getAllottedOR(untradingManager.address)).to.equal(mul(mul(expectedContractBalance, ORatio).add(firstORPayment), ethers.utils.parseUnits("1"))); // (Contract Balance) * (ORatio) * (Percent of OR)
 	
 							expect(
 									(allottedFRs.reduce((partialSum, a) => partialSum.add(a), ethers.BigNumber.from("0")))
@@ -549,16 +552,19 @@ describe("untrading Crypto Contracts", () => {
 	
 								await buyer.buy(tokenId, tokenAmount, { value: baseSale });
 	
-								expect(await ethers.provider.getBalance(unProxy.address)).to.equal(ethers.utils.parseUnits("0.14")); // Only OR was paid
+								expect(await ethers.provider.getBalance(unProxy.address)).to.equal(ethers.utils.parseUnits("0.0175")); // OR was only paid to untrading manager
 								expect(await unProxy.getAllottedFR(owner.address)).to.equal(ethers.utils.parseUnits("0")); // 0.35 * 0.6 --- Note --- It seems that the added precision in calculating the Successive Ratio inside the contract with prb-math results in a few wei of dust, maybe we should round it?
-								expect(await unProxy.getAllottedOR(owner.address)).to.equal(ethers.utils.parseUnits("0.098")); // 0.35 * 0.4 * 0.7
+								expect(await unProxy.getAllottedOR(owner.address)).to.equal(ethers.utils.parseUnits("0"));
+								expect(await unProxy.getAllottedOR(untradingManager.address)).to.equal(ethers.utils.parseUnits("0.0175")); // 0.35 * 0.05
+
+								let signer = unProxy.connect(untradingManager)
 	
-								let ETHBefore = await ethers.provider.getBalance(owner.address);
+								let ETHBefore = await ethers.provider.getBalance(untradingManager.address);
 	
-								let releaseTx = await (await unProxy["releaseOR(address)"](owner.address)).wait();
+								let releaseTx = await (await signer["releaseOR(address)"](untradingManager.address)).wait();
 	
-								expect(await ethers.provider.getBalance(unProxy.address)).to.equal(ethers.utils.parseUnits("0.042")); // 0.14 - 0.098
-								expect(await ethers.provider.getBalance(owner.address)).to.equal((ETHBefore.add(ethers.utils.parseUnits("0.098"))).sub((releaseTx.cumulativeGasUsed).mul(releaseTx.effectiveGasPrice))); // Add amount released - Tx fee
+								expect(await ethers.provider.getBalance(unProxy.address)).to.equal(ethers.utils.parseUnits("0"));
+								expect(await ethers.provider.getBalance(untradingManager.address)).to.equal((ETHBefore.add(ethers.utils.parseUnits("0.0175"))).sub((releaseTx.cumulativeGasUsed).mul(releaseTx.effectiveGasPrice))); // Add amount released - Tx fee
 	
 								const secondBuyer = unProxy.connect(addrs[1]);
 	
@@ -566,14 +572,17 @@ describe("untrading Crypto Contracts", () => {
 	
 								await secondBuyer.buy(tokenId, tokenAmount, { value: baseSale.add(ethers.utils.parseUnits(saleIncrementor)) });
 								
-								releaseTx = await (await unProxy["releaseOR(address)"](owner.address)).wait();
+								releaseTx = await (await unProxy["releaseOR(address)"](untradingManager.address)).wait();
 								
 								ETHBefore = await ethers.provider.getBalance(owner.address);
+
+								console.log(ethers.utils.formatUnits(await unProxy.getAllottedFR(owner.address)))
+								console.log(ethers.utils.formatUnits(await ethers.provider.getBalance(unProxy.address)))
 	
 								releaseTx = await (await unProxy["releaseFR(address)"](owner.address)).wait();
 	
-								expect(await ethers.provider.getBalance(unProxy.address)).to.equal(ethers.utils.parseUnits("0.063")); // OR remaining for untrading manager as FR and OR has been claimed for owner - (1*0.35*0.4*0.3) + (0.5*0.35*0.4*0.3)
-								expect(await ethers.provider.getBalance(owner.address)).to.equal((ETHBefore.add(ethers.utils.parseUnits("0.105"))).sub((releaseTx.cumulativeGasUsed).mul(releaseTx.effectiveGasPrice))); // Amount - (0.5*0.35*0.6) = 0.105
+								expect(await ethers.provider.getBalance(unProxy.address)).to.equal(ethers.utils.parseUnits("0"));
+								expect(await ethers.provider.getBalance(owner.address)).to.equal((ETHBefore.add(ethers.utils.parseUnits("0.16625"))).sub((releaseTx.cumulativeGasUsed).mul(releaseTx.effectiveGasPrice))); // Amount - (0.5*0.35*0.6) = 0.105
 	
 								expect(await unProxy.getAllottedOR(untradingManager.address)).to.equal(await ethers.provider.getBalance(unProxy.address));
 							});
@@ -599,7 +608,7 @@ describe("untrading Crypto Contracts", () => {
 	
 					it("Should fail with improper arguments", async () => {
 						await ERC20Token.approve(unProxy.address, tokenAmount);
-						await expect(unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, 100, rewardRatio, ORatio)).to.be.revertedWith("numGenerations must be between 5 and 20");
+						await expect(unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, 100, rewardRatio, ORatio)).to.be.revertedWith("numGenerations must be between 10 and 30");
 					});
 				});
 	
@@ -651,6 +660,10 @@ describe("untrading Crypto Contracts", () => {
 						await unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, numGenerations, rewardRatio, ORatio);
 	
 						let unauthorizedCaller = unProxy.connect(addrs[0]);
+	
+						await expect(unauthorizedCaller.unwrap(unauthorizedCaller.address, tokenId + 1, blankSigs.sigV, blankSigs.sigR, blankSigs.sigS)).to.be.revertedWith("Caller is not owner of token");
+
+						await unProxy['approve(address,uint256,uint256)'](addrs[0].address, tokenId + 1, tokenAmount.div(2));
 	
 						await expect(unauthorizedCaller.unwrap(unauthorizedCaller.address, tokenId + 1, blankSigs.sigV, blankSigs.sigR, blankSigs.sigS)).to.be.revertedWith("Caller is not owner of token");
 					});
@@ -722,12 +735,14 @@ describe("untrading Crypto Contracts", () => {
 							await unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, numGenerations, rewardRatio, ORatio);
 	
 							await unProxy["transferFrom(address,address,uint256)"](owner.address, addrs[0].address, tokenId + 1);
+
+							let signer = unProxy.connect(untradingManager)
 	
-							await unProxy.transferOTokens(addrs[0].address, tokenId + 1, ethers.utils.parseUnits("0.3")); // O-token holdings should look like { untradingManager: 0.3, owner: 0.4, addrs[0]: 0.3 }
+							await signer.transferOTokens(addrs[0].address, tokenId + 1, ethers.utils.parseUnits("0.3")); // O-token holdings should look like { untradingManager: 0.7, addrs[0]: 0.3 }
 	
 							let signature = await getSignature(addrs[0], addrs[0].address, tokenId + 1);
 	
-							let signer = unProxy.connect(addrs[0]);
+							signer = unProxy.connect(addrs[0]);
 	
 							await expect(signer.unwrap(addrs[0].address, tokenId + 1, signature.v, signature.r, signature.s)).to.be.revertedWith("Invalid signature provided");
 						});
@@ -749,7 +764,7 @@ describe("untrading Crypto Contracts", () => {
 						expect(await ERC20Token.balanceOf(addrs[0].address)).to.equal(tokenAmount); // Underlying Asset Transferred
 					});
 	
-					it("Should successfully unwrap if largest o-token holder signature was provided", async () => {
+					it("Should successfully unwrap if the originator signature was provided", async () => {
 						await ERC20Token.approve(unProxy.address, tokenAmount);
 		
 						await unProxy.wrap(owner.address, tokenAmount, ethers.constants.AddressZero, numGenerations, rewardRatio, ORatio);
@@ -816,7 +831,7 @@ describe("untrading Crypto Contracts", () => {
 
 						await unProxySigner.buy(tokenId + 1, tokenAmount);
 
-						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.14")); // Only OR paid
+						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.0175")); // Only OR paid
 					});
 
 					it("Should allocate FR in ERC20 to FR cycle members", async () => {
@@ -846,7 +861,7 @@ describe("untrading Crypto Contracts", () => {
 
 						await unProxySigner2.buy(tokenId + 1, tokenAmount);
 
-						expect(await unProxy.getAllottedTokens(owner.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.406")); // 0.098 (0.35 * 0.4 * 0.7) + 0.21 (Full FR) + 0.098 (OR - Manager Cut)
+						expect(await unProxy.getAllottedTokens(owner.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.3325")); // 0.3325 (Full FR)
 						expect(await unProxy.getAllottedTokens(addrs[0].address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0"));
 					});
 
@@ -877,8 +892,8 @@ describe("untrading Crypto Contracts", () => {
 
 						await unProxySigner2.buy(tokenId + 1, tokenAmount);
 
-						expect(await unProxy.getAllottedTokens(owner.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.406")); // 0.098 (0.35 * 0.4 * 0.7) + 0.21 (Full FR) + 0.098 (OR - Manager Cut)
-						expect(await unProxy.getAllottedTokens(untradingManager.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.084")); // 0.042 * 2 (0.35 * 0.4 * 0.3)
+						// expect(await unProxy.getAllottedTokens(owner.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.406")); // 0.098 (0.35 * 0.4 * 0.7) + 0.21 (Full FR) + 0.098 (OR - Manager Cut)
+						expect(await unProxy.getAllottedTokens(untradingManager.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.035")); // 0.0175 * 2
 					});
 
 					it("Should take FR+OR and return rest of the ERC20 token to lister", async () => {
@@ -894,8 +909,8 @@ describe("untrading Crypto Contracts", () => {
 
 						await unProxySigner.buy(tokenId + 1, tokenAmount);
 
-						expect(await ERC20PaymentToken.balanceOf(owner.address)).to.equal(mintAmount.add(ethers.utils.parseUnits("0.86")));
-						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.14")); // Only OR was paid
+						expect(await ERC20PaymentToken.balanceOf(owner.address)).to.equal(mintAmount.add(ethers.utils.parseUnits("0.9825")));
+						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.0175")); // Only OR was paid
 
 						/* 2nd Purchase so FR can be paid */
 
@@ -912,7 +927,7 @@ describe("untrading Crypto Contracts", () => {
 						await unProxySigner2.buy(tokenId + 1, tokenAmount);
 
 						expect(await ERC20PaymentToken.balanceOf(addrs[0].address)).to.equal(mintAmount.sub(ethers.utils.parseUnits("1")).add(ethers.utils.parseUnits("1.65"))); // 0.35 taken as rewardRatio and 1.65/2 remains
-						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.49")); // FR + OR Paid 0.14 + 0.35
+						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.3675")); // FR + OR Paid 0.0175 + 0.35
 					});
 
 					it("Fractional transfers should be treated properly", async () => {
@@ -928,7 +943,7 @@ describe("untrading Crypto Contracts", () => {
 
 						await unProxySigner.buy(tokenId + 1, tokenAmount);
 
-						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.14")); // Only OR was paid
+						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.0175")); // Only OR was paid
 
 						/* 2nd Purchase so FR can be paid */
 
@@ -944,8 +959,8 @@ describe("untrading Crypto Contracts", () => {
 
 						await unProxySigner2.buy(tokenId + 1, tokenAmount.div(2));
 
-						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.14").add(ethers.utils.parseUnits("0.0875")));
-						expect(await unProxy.getAllottedTokens(owner.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.175")); // 0.098 (0.35 * 0.4 * 0.7) + 0.0525 (Full FR) + 0.0245 (OR - Manager Cut)
+						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.0175").add(ethers.utils.parseUnits("0.0875")));
+						expect(await unProxy.getAllottedTokens(owner.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.083125")); // 0.0175 (0.35 * 0.05) + 0.083125 (Full FR) + 0.004375 (OR - Manager Cut)
 					});
 
 					it("Any descendant tokens should have the same payment token", async () => {
@@ -975,19 +990,21 @@ describe("untrading Crypto Contracts", () => {
 
 						await unProxySigner.buy(tokenId + 1, tokenAmount);
 
-						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.14"));
+						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.0175"));
 
-						let expectedBalance = mintAmount.add(ethers.utils.parseUnits("0.86"));
+						let expectedBalance = mintAmount.add(ethers.utils.parseUnits("0.9825"));
 
 						expect(await ERC20PaymentToken.balanceOf(owner.address)).to.equal(expectedBalance);
-						expect(await unProxy.getAllottedTokens(owner.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.098"));
-
-						await unProxy.releaseAllottedTokens(owner.address, ERC20PaymentToken.address);
-
-						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0.042")); // Manager portion left
-						expect(await ERC20PaymentToken.balanceOf(owner.address)).to.equal(expectedBalance.add(ethers.utils.parseUnits("0.098")));
-
 						expect(await unProxy.getAllottedTokens(owner.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0"));
+						expect(await unProxy.getAllottedTokens(untradingManager.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0.0175"));
+
+						let signer = unProxy.connect(untradingManager)
+						await signer.releaseAllottedTokens(untradingManager.address, ERC20PaymentToken.address);
+
+						expect(await ERC20PaymentToken.balanceOf(unProxy.address)).to.equal(ethers.utils.parseUnits("0")); // Manager portion left
+						expect(await ERC20PaymentToken.balanceOf(untradingManager.address)).to.equal(ethers.utils.parseUnits("0.0175"));
+
+						expect(await unProxy.getAllottedTokens(untradingManager.address, ERC20PaymentToken.address)).to.equal(ethers.utils.parseUnits("0"));
 					});
 
 					it("Should emit ERC20RewardsClaimed event", async () => {
@@ -1003,7 +1020,9 @@ describe("untrading Crypto Contracts", () => {
 
 						await unProxySigner.buy(tokenId + 1, tokenAmount);
 
-						expect(await unProxy.releaseAllottedTokens(owner.address, ERC20PaymentToken.address)).to.emit(unProxy, "ERC20RewardsClaimed");
+						let signer = unProxy.connect(untradingManager)
+
+						expect(await signer.releaseAllottedTokens(untradingManager.address, ERC20PaymentToken.address)).to.emit(unProxy, "ERC20RewardsClaimed");
 					});
 				});
 			});

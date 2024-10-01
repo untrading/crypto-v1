@@ -65,11 +65,11 @@ contract unFacet is nFR, Management, IunFacet {
         uint256 rewardRatio,
         uint256 ORatio
     ) internal returns(uint256 tokenId) { 
-        require(numGenerations >= 5 && numGenerations <= 20, "numGenerations must be between 5 and 20");
+        require(numGenerations >= 10 && numGenerations <= 30, "numGenerations must be between 10 and 30");
         require(rewardRatio >= 5e16 && rewardRatio <= 5e17, "rewardRatio must be between 5% and 50%");
-        require(ORatio >= 5e16 && ORatio <= 5e17, "ORatio must be between 5% and 50%");
+        require(ORatio >= 5e16 && ORatio <= 12e16, "ORatio must be between 5% and 12%");
 
-        uint256 successiveRatio = ((uint256(numGenerations) * 1e18).div((uint256(numGenerations) * 1e18) - 1.618e18)) / 100 * 100; // by ( / 100 * 100) we are effectively rounding down the successive ratio. The division takes advantage of Solidity's automatic decimal truncation, effectively removing the last 2 digits, then the multiplication adds those 2 digits back as 0s.
+        uint256 successiveRatio = ((uint256(numGenerations) * 1e18).div((uint256(numGenerations) * 1e18) - 1.618e18)) / 1000000 * 1000000; // by ( / 1000000 * 1000000) we are effectively rounding down the successive ratio. The division takes advantage of Solidity's automatic decimal truncation, effectively removing the last 6 digits, then the multiplication adds those 6 digits back as 0s. We used to round 2 digits, but 6 seems to reduce dusting further.
         uint256 percentOfProfit = rewardRatio.mul(1e18 - ORatio);
 
         ORatio = rewardRatio.mul(ORatio);
@@ -125,15 +125,15 @@ contract unFacet is nFR, Management, IunFacet {
 
             oTokenStorage.oToken storage oToken = o._oTokens[oTokenId];
 
-            address largestOTokenHolder;
+            // address largestOTokenHolder;
 
-            for (uint i = 0; i < oToken.holders.length; i++) {
-                if (oToken.amount[oToken.holders[i]] > oToken.amount[largestOTokenHolder]) { // Only forseeable problem is if the oToken holders are split or tied, e.g. [0.1, 0.45, 0.45] In this config only the middle address' sig would need be approved.
-                    largestOTokenHolder = oToken.holders[i];
-                }
-            }
+            // for (uint i = 0; i < oToken.holders.length; i++) {
+            //     if (oToken.amount[oToken.holders[i]] > oToken.amount[largestOTokenHolder]) { // Only forseeable problem is if the oToken holders are split or tied, e.g. [0.1, 0.45, 0.45] In this config only the middle address' sig would need be approved.
+            //         largestOTokenHolder = oToken.holders[i];
+            //     }
+            // }
 
-            require(recovered == m.untradingManager || recovered == largestOTokenHolder, "Invalid signature provided");
+            require(recovered == m.untradingManager || recovered == oToken.holders[1], "Invalid signature provided"); // In this case oToken.holders[1] will always be the originator, as they never receive any o-tokens and their spot will never change.
         }
 
         address underlyingTokenAddress = w.underlyingTokenAddress;
@@ -220,7 +220,7 @@ contract unFacet is nFR, Management, IunFacet {
         oToken.paymentToken = paymentToken;
         oToken.holders = [m.untradingManager, to];
         oToken.amount[m.untradingManager] = m.managerCut;
-        oToken.amount[to] = (1e18 - m.managerCut);
+        // oToken.amount[to] = (1e18 - m.managerCut);
 
         emit OTokensDistributed(tokenId);
     }
